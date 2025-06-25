@@ -7,6 +7,7 @@ namespace ACSEO\TypesenseBundle\Finder;
 use ACSEO\TypesenseBundle\Client\CollectionClient;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Query\ResultSetMappingBuilder;
+use Ramsey\Uuid\UuidInterface;
 
 class CollectionFinder implements CollectionFinderInterface
 {
@@ -18,7 +19,7 @@ class CollectionFinder implements CollectionFinderInterface
     {
         $this->collectionConfig = $collectionConfig;
         $this->collectionClient = $collectionClient;
-        $this->em               = $em;
+        $this->em = $em;
     }
 
     public function rawQuery(TypesenseQuery $query)
@@ -33,7 +34,7 @@ class CollectionFinder implements CollectionFinderInterface
         return $this->hydrate($results);
     }
 
-    public function hydrateResponse(TypesenseResponse $response) : TypesenseResponse
+    public function hydrateResponse(TypesenseResponse $response): TypesenseResponse
     {
         return $this->hydrate($response);
     }
@@ -44,9 +45,9 @@ class CollectionFinder implements CollectionFinderInterface
      * @param TypesenseResponse $results
      * @return TypesenseResponse
      */
-    private function hydrate(TypesenseResponse $results) : TypesenseResponse
+    private function hydrate(TypesenseResponse $results): TypesenseResponse
     {
-        $ids             = [];
+        $ids = [];
         $primaryKeyInfos = $this->getPrimaryKeyInfo();
         foreach ($results->getResults() as $result) {
             $ids[] = $result['document'][$primaryKeyInfos['documentAttribute']];
@@ -73,6 +74,14 @@ class CollectionFinder implements CollectionFinderInterface
                 $idA = $a->$entityIdMethod();
                 $idB = $b->$entityIdMethod();
 
+                if ($idA instanceof UuidInterface) {
+                    $idA = $idA->toString();
+                }
+
+                if ($idB instanceof UuidInterface) {
+                    $idB = $idB->toString();
+                }
+
                 return $idIndex[$idA] <=> $idIndex[$idB];
             });
 
@@ -85,7 +94,7 @@ class CollectionFinder implements CollectionFinderInterface
         return $results;
     }
 
-    private function search(TypesenseQuery $query) : TypesenseResponse
+    private function search(TypesenseQuery $query): TypesenseResponse
     {
         $result = $this->collectionClient->search($this->collectionConfig['typesense_name'], $query);
 
