@@ -177,6 +177,8 @@ class ImportCommand extends Command
                 throw new \Exception('Error happened during the import of the collection : ' . $collectionName . ' (you can see them with the option -v)');
             }
 
+            $this->em->clear();
+
             $populated += count($data);
         }
 
