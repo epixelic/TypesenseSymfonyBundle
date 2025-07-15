@@ -30,16 +30,17 @@ class ImportCommand extends Command
     private $isError = false;
 
     public function __construct(
-        EntityManagerInterface $em,
-        CollectionManager $collectionManager,
-        DocumentManager $documentManager,
+        EntityManagerInterface         $em,
+        CollectionManager              $collectionManager,
+        DocumentManager                $documentManager,
         DoctrineToTypesenseTransformer $transformer
-    ) {
+    )
+    {
         parent::__construct();
-        $this->em                = $em;
+        $this->em = $em;
         $this->collectionManager = $collectionManager;
-        $this->documentManager   = $documentManager;
-        $this->transformer       = $transformer;
+        $this->documentManager = $documentManager;
+        $this->transformer = $transformer;
     }
 
     protected function configure()
@@ -51,8 +52,7 @@ class ImportCommand extends Command
             ->addOption('indexes', null, InputOption::VALUE_OPTIONAL, 'The index(es) to repopulate. Comma separated values')
             ->addOption('first-page', null, InputOption::VALUE_REQUIRED, 'The pager\'s page to start population from. Including the given page.', 1)
             ->addOption('last-page', null, InputOption::VALUE_REQUIRED, 'The pager\'s page to end population on. Including the given page.', null)
-            ->addOption('max-per-page', null, InputOption::VALUE_REQUIRED, 'The pager\'s page size', 100)
-        ;
+            ->addOption('max-per-page', null, InputOption::VALUE_REQUIRED, 'The pager\'s page size', 100);
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -87,7 +87,7 @@ class ImportCommand extends Command
         $indexes = (null !== $indexes = $input->getOption('indexes')) ? explode(',', $indexes) : \array_keys($collectionDefinitions);
         foreach ($indexes as $index) {
             if (!isset($collectionDefinitions[$index])) {
-                $io->error('Unable to find index "'.$index.'" in collection definition (available : '.implode(', ', array_keys($collectionDefinitions)).')');
+                $io->error('Unable to find index "' . $index . '" in collection definition (available : ' . implode(', ', array_keys($collectionDefinitions)) . ')');
 
                 return 2;
             }
@@ -120,45 +120,44 @@ class ImportCommand extends Command
     private function populateIndex(InputInterface $input, OutputInterface $output, string $index)
     {
         $populated = 0;
-        $io        = new SymfonyStyle($input, $output);
+        $io = new SymfonyStyle($input, $output);
 
         $collectionDefinitions = $this->collectionManager->getCollectionDefinitions();
-        $collectionDefinition  = $collectionDefinitions[$index];
-        $action                = $input->getOption('action');
+        $collectionDefinition = $collectionDefinitions[$index];
+        $action = $input->getOption('action');
 
-        $firstPage  = $input->getOption('first-page');
-        $maxPerPage = $input->getOption('max-per-page');
+        $firstPage = (int)$input->getOption('first-page');
+        $maxPerPage = (int)$input->getOption('max-per-page');
 
         $collectionName = $collectionDefinition['typesense_name'];
-        $class          = $collectionDefinition['entity'];
+        $class = $collectionDefinition['entity'];
 
-        $nbEntities = (int) $this->em->createQuery('select COUNT(u.id) from '.$class.' u')->getSingleScalarResult();
+        $nbEntities = (int)$this->em->createQuery('select COUNT(u.id) from ' . $class . ' u')->getSingleScalarResult();
 
         $nbPages = ceil($nbEntities / $maxPerPage);
-        
+
         if ($input->getOption('last-page')) {
             $lastPage = $input->getOption('last-page');
             if ($lastPage > $nbPages) {
-                throw new \Exception('The last-page option ('.$lastPage.') is bigger than the number of pages ('.$nbPages.')');
+                throw new \Exception('The last-page option (' . $lastPage . ') is bigger than the number of pages (' . $nbPages . ')');
             }
         } else {
             $lastPage = $nbPages;
         }
 
         if ($lastPage < $firstPage) {
-            throw new \Exception('The first-page option ('.$firstPage.') is bigger than the last-page option ('.$lastPage.')');
+            throw new \Exception('The first-page option (' . $firstPage . ') is bigger than the last-page option (' . $lastPage . ')');
         }
 
-        $io->text('<info>['.$collectionName.'] '.$class.'</info> '.$nbEntities.' entries to insert splited into '.$nbPages.' pages of '.$maxPerPage.' elements. Insertion from page '.$firstPage.' to '.$lastPage.'.');
+        $io->text('<info>[' . $collectionName . '] ' . $class . '</info> ' . $nbEntities . ' entries to insert splited into ' . $nbPages . ' pages of ' . $maxPerPage . ' elements. Insertion from page ' . $firstPage . ' to ' . $lastPage . '.');
 
         for ($i = $firstPage; $i <= $lastPage; ++$i) {
-            $q = $this->em->createQuery('select e from '.$class.' e')
+            $q = $this->em->createQuery('select e from ' . $class . ' e')
                 ->setFirstResult(($i - 1) * $maxPerPage)
-                ->setMaxResults($maxPerPage)
-            ;
+                ->setMaxResults($maxPerPage);
 
             if ($io->isDebug()) {
-                $io->text('<info>Running request : </info>'.$q->getSQL());
+                $io->text('<info>Running request : </info>' . $q->getSQL());
             }
 
             $entities = $q->toIterable();
@@ -168,14 +167,14 @@ class ImportCommand extends Command
                 $data[] = $this->transformer->convert($entity);
             }
 
-            $io->text('Import <info>['.$collectionName.'] '.$class.'</info> Page '.$i.' of '.$lastPage.' ('.count($data).' items)');
+            $io->text('Import <info>[' . $collectionName . '] ' . $class . '</info> Page ' . $i . ' of ' . $lastPage . ' (' . count($data) . ' items)');
 
             $result = $this->documentManager->import($collectionName, $data, $action);
 
             if ($this->printErrors($io, $result)) {
                 $this->isError = true;
 
-                throw new \Exception('Error happened during the import of the collection : '.$collectionName.' (you can see them with the option -v)');
+                throw new \Exception('Error happened during the import of the collection : ' . $collectionName . ' (you can see them with the option -v)');
             }
 
             $populated += count($data);
