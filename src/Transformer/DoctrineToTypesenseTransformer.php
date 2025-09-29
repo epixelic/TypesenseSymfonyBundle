@@ -4,10 +4,7 @@ declare(strict_types=1);
 
 namespace ACSEO\TypesenseBundle\Transformer;
 
-use App\Doctrine\Entity\Site\Site;
 use Doctrine\Common\Collections\Collection;
-use Doctrine\Common\Util\ClassUtils;
-use Doctrine\ORM\PersistentCollection;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\PropertyAccess\Exception\RuntimeException;
 use Symfony\Component\PropertyAccess\PropertyAccessorInterface;
@@ -33,7 +30,7 @@ class DoctrineToTypesenseTransformer extends AbstractTransformer
 
     public function convert($entity): array
     {
-        $entityClass = ClassUtils::getClass($entity);
+        $entityClass = get_class($entity);
 
         // See : https://github.com/acseo/TypesenseBundle/pull/91
         // Allow subclasses to be recognized as a parent class

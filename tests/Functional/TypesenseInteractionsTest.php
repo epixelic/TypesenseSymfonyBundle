@@ -20,7 +20,7 @@ use Doctrine\DBAL\Connection;
 use Doctrine\ORM\Query;
 use Doctrine\ORM\Configuration;
 use Doctrine\ORM\EntityManager;
-use Doctrine\ORM\Event\LifecycleEventArgs;
+use Doctrine\Persistence\Event\LifecycleEventArgs;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Console\Application;
 use Symfony\Component\Console\Tester\CommandTester;
@@ -33,8 +33,8 @@ use Symfony\Component\PropertyAccess\PropertyAccess;
  */
 class TypesenseInteractionsTest extends KernelTestCase
 {
-    public const NB_BOOKS    = 5;
-    public const BOOK_TITLES = [
+    public const int NB_BOOKS    = 5;
+    public const array BOOK_TITLES = [
         'Total Khéops',
         'Chourmo',
         'Solea',
@@ -95,7 +95,7 @@ class TypesenseInteractionsTest extends KernelTestCase
         );
     }
 
-    public function importCommandProvider()
+    public function importCommandProvider(): array
     {
         return [
             "insert 10 books one by one" => [
@@ -105,7 +105,7 @@ class TypesenseInteractionsTest extends KernelTestCase
                 42, 10
             ],
             "insert 130 books 100 per 100" => [
-                130, null //100 is by defaut
+                130, null //100 is by default
             ],
             "insert 498 books 50 per 50, from page 8 to 10 and expect 148 inserted" => [
                 498, 50, 8, 10, 148
@@ -129,12 +129,12 @@ class TypesenseInteractionsTest extends KernelTestCase
         $bookFinder = new CollectionFinder($collectionClient, $em, $bookDefinition);
         $query = new TypesenseQuery('Nicolas', 'author');
 
-        $query->maxHits($nbBooks < 250 ? $nbBooks : 250);
-        $query->perPage($nbBooks < 250 ? $nbBooks : 250);
+        $query->maxHits(min($nbBooks, 250));
+        $query->perPage(min($nbBooks, 250));
         
         $results    = $bookFinder->rawQuery($query)->getResults();
 
-        self::assertCount(($nbBooks < 250 ? $nbBooks : 250), $results, "result doesn't contains ".$nbBooks.' elements');
+        self::assertCount((min($nbBooks, 250)), $results, "result doesn't contains ".$nbBooks.' elements');
         self::assertArrayHasKey('document', $results[0], "First item does not have the key 'document'");
         self::assertArrayHasKey('highlights', $results[0], "First item does not have the key 'highlights'");
         self::assertArrayHasKey('text_match', $results[0], "First item does not have the key 'text_match'");
@@ -284,7 +284,7 @@ class TypesenseInteractionsTest extends KernelTestCase
         return new CommandTester($application->find('typesense:import'));
     }
 
-    private function getCollectionDefinitions($entityClass)
+    private function getCollectionDefinitions($entityClass): array
     {
         return [
             'books' => [
@@ -343,7 +343,7 @@ class TypesenseInteractionsTest extends KernelTestCase
         ];
     }
 
-    private function getMockedBooks($options)
+    private function getMockedBooks($options): array
     {
         $author = new Author('Nicolas Potier', 'France');
         $books  = [];

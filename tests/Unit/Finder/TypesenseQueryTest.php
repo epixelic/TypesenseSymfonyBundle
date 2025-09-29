@@ -21,7 +21,7 @@ class TypesenseQueryTest extends TestCase
 
     public function testComplexQuery()
     {
-        $query = (new TypesenseQuery('search term', 'search field'))
+        $query = new TypesenseQuery('search term', 'search field')
             ->prefix(false)
             ->filterBy('filter term')
             ->sortBy('sort term')
