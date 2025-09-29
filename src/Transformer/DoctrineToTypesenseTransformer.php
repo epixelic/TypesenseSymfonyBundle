@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace ACSEO\TypesenseBundle\Transformer;
 
+use App\Doctrine\Entity\Site\Site;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\Common\Util\ClassUtils;
+use Doctrine\ORM\PersistentCollection;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\PropertyAccess\Exception\RuntimeException;
 use Symfony\Component\PropertyAccess\PropertyAccessorInterface;
@@ -61,11 +64,7 @@ class DoctrineToTypesenseTransformer extends AbstractTransformer
             if (str_contains($entityAttribute, '::')) {
                 $value = $this->getFieldValueFromService($entity, $entityAttribute);
             } else {
-                try {
-                    $value = $this->accessor->getValue($entity, $fieldsInfo['entity_attribute']);
-                } catch (RuntimeException $exception) {
-                    $value = null;
-                }
+                $value = $this->getFieldValueFromEntity($entity, $entityAttribute);
             }
 
             $name = $fieldsInfo['name'];
@@ -141,4 +140,61 @@ class DoctrineToTypesenseTransformer extends AbstractTransformer
         return null;
     }
 
+    /*
+    * @param object $entity The starting entity object.
+    * @param string $entityAttribute The dot-separated attribute path.
+    * @return mixed|null The value of the attribute, or null if not found or an exception occurs.
+    */
+    private function getFieldValueFromEntity(object $entity, string $entityAttribute)
+    {
+        if (empty($entityAttribute)) {
+            return null;
+        }
+
+        try {
+            if ($this->accessor->isReadable($entity, $entityAttribute)) {
+                return $this->accessor->getValue($entity, $entityAttribute);
+            }
+
+            // Handle cases where the path *might* involve a Collection (1-n, n-n)
+            $atr = explode('.', $entityAttribute);
+            $firstProperty = $atr[0];
+
+            if ($this->accessor->isReadable($entity, $firstProperty)) {
+                $nestedValue = $this->accessor->getValue($entity, $firstProperty);
+
+                if ($nestedValue instanceof Collection || is_array($nestedValue)) {
+                    $remainingPath = implode('.', array_slice($atr, 1));
+
+                    if (empty($remainingPath)) {
+                        return $nestedValue;
+                    }
+
+                    $results = [];
+
+                    foreach ($nestedValue as $item) {
+                        $result = $this->getFieldValueFromEntity($item, $remainingPath);
+                        if ($result !== null) {
+                            if (is_array($result)) {
+                                $results = array_merge($results, $result);
+                            } else {
+                                $results[] = $result;
+                            }
+                        }
+                    }
+
+                    if (count($results) > 0) {
+                        return $results;
+                    }
+                } else {
+                    return null;
+                }
+            }
+
+            return null;
+
+        } catch (RuntimeException $exception) {
+            return null;
+        }
+    }
 }
