@@ -25,6 +25,11 @@ class CollectionManager
         return $this->collectionDefinitions;
     }
 
+    public function getCollectionDefinition(string $name)
+    {
+        return $this->collectionDefinitions[$name];
+    }
+
     public function getManagedClassNames()
     {
         $managedClassNames = [];

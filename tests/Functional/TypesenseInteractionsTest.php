@@ -186,7 +186,7 @@ class TypesenseInteractionsTest extends KernelTestCase
         $bookFinder            = new CollectionFinder($collectionClient, $em, $bookDefinition);
 
         // Init the listener
-        $listener = new TypesenseIndexer($collectionManager, $documentManager, $transformer);
+        $listener = new TypesenseIndexer($collectionManager, $documentManager, $transformer, $em, []);
         // Create a LifecycleEventArgs with a book
         $event = $this->getmockedEventCreate($book);
 

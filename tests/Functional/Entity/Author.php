@@ -6,13 +6,23 @@ namespace ACSEO\TypesenseBundle\Tests\Functional\Entity;
 
 class Author
 {
+    private $id;
     private $name;
     private $country;
 
-    public function __construct(string $name, string $country)
+    public function __construct(string $name, string $country, ?int $id = 99)
     {
+        $this->id          = $id;
         $this->name    = $name;
         $this->country = $country;
+    }
+
+    /**
+     * Get the value of id.
+     */
+    public function getId()
+    {
+        return $this->id;
     }
 
     public function __toString()

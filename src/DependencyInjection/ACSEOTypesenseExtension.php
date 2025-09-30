@@ -61,6 +61,7 @@ class ACSEOTypesenseExtension extends Extension
         $this->loadFinderServices($container);
 
         $this->loadTransformer($container);
+        $this->loadRelatedEntities($container);
         $this->configureController($container);
     }
 
@@ -136,6 +137,7 @@ class ACSEOTypesenseExtension extends Extension
             $this->collectionsConfig[$name] = [
                 'typesense_name'        => $collectionName,
                 'entity'                => $config['entity'],
+                'related_entities'      => $config['related_entities'],
                 'name'                  => $name,
                 'fields'                => $config['fields'],
                 'default_sorting_field' => $config['default_sorting_field'],
@@ -162,6 +164,24 @@ class ACSEOTypesenseExtension extends Extension
     {
         $managerDef = $container->getDefinition('typesense.transformer.doctrine_to_typesense');
         $managerDef->replaceArgument(0, $this->collectionsConfig);
+    }
+
+    private function loadRelatedEntities(ContainerBuilder $container): void
+    {
+        $relatedEntities = [];
+        foreach ($this->collectionsConfig as $name => $config) {
+            if (isset($config['related_entities'])) {
+                foreach ($config['related_entities'] as $relatedEntity) {
+                    if (!isset($relatedEntities[$relatedEntity])) {
+                        $relatedEntities[$relatedEntity] = [];
+                    }
+                    $relatedEntities[$relatedEntity][] = $name;
+                }
+            }
+        }
+
+        $listenerDef = $container->getDefinition('typesense.listener.doctrine_indexer');
+        $listenerDef->addArgument($relatedEntities);
     }
 
     /**

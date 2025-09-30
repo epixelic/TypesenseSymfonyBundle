@@ -11,6 +11,10 @@ use ACSEO\TypesenseBundle\Manager\CollectionManager;
 use ACSEO\TypesenseBundle\Tests\Functional\Entity\Book;
 use ACSEO\TypesenseBundle\Tests\Functional\Entity\Author;
 use ACSEO\TypesenseBundle\Transformer\DoctrineToTypesenseTransformer;
+use Doctrine\ORM\AbstractQuery;
+use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\EntityRepository;
+use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\Event\LifecycleEventArgs;
 use Doctrine\Persistence\ObjectManager;
 use PHPUnit\Framework\TestCase;
@@ -35,7 +39,7 @@ class TypesenseIndexerTest extends TestCase
         $this->container = $this->prophesize(ContainerInterface::class);
     }
 
-    private function initialize($collectionDefinitions)
+    private function initialize($collectionDefinitions, $relatedEntities = [], $entityManager = null)
     {
         $transformer = new DoctrineToTypesenseTransformer($collectionDefinitions, $this->propertyAccessor, $this->container->reveal());
 
@@ -43,8 +47,11 @@ class TypesenseIndexerTest extends TestCase
 
         $collectionManager = new CollectionManager($collectionClient->reveal(), $transformer, $collectionDefinitions);
         $this->documentManager = $this->prophesize(DocumentManager::class);
+        if (!$entityManager) {
+            $entityManager = $this->prophesize(EntityManagerInterface::class);
+        }
 
-        $this->eventListener = new TypesenseIndexer($collectionManager, $this->documentManager->reveal(), $transformer);
+        $this->eventListener = new TypesenseIndexer($collectionManager, $this->documentManager->reveal(), $transformer, $entityManager->reveal(), $relatedEntities);
     }
 
     /**
@@ -72,6 +79,64 @@ class TypesenseIndexerTest extends TestCase
             'published_at' => 441763200,
             'active' => false
         ])->shouldHaveBeenCalled();
+    }
+
+    public function testPostUpdateWithRelatedEntities()
+    {
+        $collectionDefinitions = $this->getCollectionDefinitions(Book::class);
+        $collectionDefinitions['books']['related_entities'] = [Author::class];
+
+        $relatedEntities = [
+            Author::class => ['books']
+        ];
+
+        $author = new Author('Aldoux Huxley', 'United Kingdom');
+
+        $book = $this->getMockBuilder(Book::class)
+            ->disableOriginalConstructor()
+            ->getMock();
+        $book->method('getId')->willReturn(1);
+        $book->method('getTitle')->willReturn('The Doors of Perception');
+        $book->method('getAuthor')->willReturn($author);
+
+        $childId = $author->getId() ?? null;
+        if ($childId === null) {
+            $author->method('getId')->willReturn(99);
+            $childId = 99;
+        }
+
+        $parentRelationProperty = 'author';
+
+        $query = $this->prophesize(AbstractQuery::class);
+        $query->getResult()->willReturn([$book]);
+
+        $queryBuilder = $this->prophesize(QueryBuilder::class);
+
+        $queryBuilder->join('p.' . $parentRelationProperty, 'c')->willReturn($queryBuilder);
+        $queryBuilder->where('c.id = :childId')->willReturn($queryBuilder);
+        $queryBuilder->setParameter('childId', $childId)->willReturn($queryBuilder);
+        $queryBuilder->getQuery()->willReturn([$book]);
+
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+
+        $transformer = new DoctrineToTypesenseTransformer($collectionDefinitions, $this->propertyAccessor, $this->container->reveal());
+        $collectionClient = $this->prophesize(CollectionClient::class);
+        $collectionManager = new CollectionManager($collectionClient->reveal(), $transformer, $collectionDefinitions);
+        $documentManager = $this->createMock(DocumentManager::class);
+
+        $documentManager->expects($this->once())
+            ->method('index')
+            ->with('books', $this->callback(function ($data) {
+                $this->assertEquals(1, $data['id']);
+                return true;
+            }));
+
+        $eventListener = new TypesenseIndexer($collectionManager, $documentManager, $transformer, $entityManager, $relatedEntities);
+
+        $eventArgs = new LifecycleEventArgs($author, $this->objectManager->reveal());
+
+        $eventListener->postUpdate($eventArgs);
+        $eventListener->postFlush();
     }
 
     public function postUpdateProvider()

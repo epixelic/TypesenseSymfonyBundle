@@ -55,6 +55,7 @@
             <argument type="service" id="typesense.collection_manager"/>
             <argument type="service" id="typesense.document_manager"/>
             <argument type="service" id="typesense.transformer.doctrine_to_typesense"/>
+            <argument type="service" id="doctrine.orm.entity_manager"/>
             <tag name="doctrine.event_listener" event="postPersist" priority="500" connection="default"/>
             <tag name="doctrine.event_listener" event="postUpdate" priority="500" connection="default"/>
             <tag name="doctrine.event_listener" event="preRemove" priority="500" connection="default"/>
